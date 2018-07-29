@@ -25,13 +25,13 @@
 var _ = require('underscore');
 var errors = require('web3-core-helpers').errors;
 var EventEmitter = require('eventemitter3');
-
+var identity = (value) => (value);
 
 function Subscription(options) {
     EventEmitter.call(this);
 
     this.id = null;
-    this.callback = null;
+    this.callback = identity;
     this.arguments = null;
     this._reconnectIntervalId = null;
 
@@ -132,7 +132,7 @@ Subscription.prototype._formatOutput = function (result) {
  */
 Subscription.prototype._toPayload = function (args) {
     var params = [];
-    this.callback = this._extractCallback(args);
+    this.callback = this._extractCallback(args) || identity;
 
     if (!this.subscriptionMethod) {
         this.subscriptionMethod = args.shift();
@@ -269,9 +269,7 @@ Subscription.prototype.subscribe = function() {
                         }
 
                         // call the callback, last so that unsubscribe there won't affect the emit above
-                        if (_.isFunction(_this.callback)) {
-                            _this.callback(null, output, _this);
-                        }
+                        _this.callback(null, output, _this);
                     });
                 } else {
                     // unsubscribe, but keep listeners
@@ -294,17 +292,12 @@ Subscription.prototype.subscribe = function() {
                     _this.emit('error', err);
 
                      // call the callback, last so that unsubscribe there won't affect the emit above
-                     if (_.isFunction(_this.callback)) {
-                        _this.callback(err, null, _this);
-                    }
+                    _this.callback(err, null, _this);
                 }
             });
-        } else if (_.isFunction(_this.callback)) {
-            _this.callback(err, null, _this);
-            _this.emit('error', err);
         } else {
-            // emit the event even if no callback was provided
-            _this.emit('error', err);
+          _this.callback(err, null, _this);
+          _this.emit('error', err);
         }
     });
 
